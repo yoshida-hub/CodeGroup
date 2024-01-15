@@ -1,0 +1,100 @@
+--Premissas:   Pedido_id e item_id são oracle sequence.
+--   Caso não sejam, teria que selecionar o max(pedido_id) e max(item_id) e somar 1, porém neste caso
+--    teria que colocar um tratamento, pois poderia haver duplicidade na primary key.
+       
+CREATE OR REPLACE PROCEDURE PRC_COMPRA(p_cliente_id        CLIENTES.CLIENTE_ID%TYPE,
+                                       p_produto_id        PRODUTOS.PRODUTO_ID%TYPE,
+									   p_quantidade        ITENS_PEDIDO.QUANTIDADE%TYPE) IS
+  -- Variaveis
+   r_produtos				PRODUTOS.ROWTYPE;
+   v_NOME	                CLIENTES.NOME%TYPE;
+   v_pedido_id              PEDIDOS.Pedido_id%TYPE;
+   v_item_id                ITENS_PEDIDO.item_id_id%TYPE;
+										
+  BEGIN
+   -- Consulta ao CLIENTE
+   v_NOME := NULL;
+   BEGIN
+    --
+	SELECT NOME
+	   INTO v_NOME
+	  FROM CLIENTES
+       WHERE CLIENTE_ID = 	 p_cliente_id;
+   EXCEPTION 
+    WHEN NO_DATA_FOUND THEN
+	  RAISE_APPLICATION_ERROR(-20001,'CLIENTE: ' || p_cliente_id ||  ' INEXISTENTE !!! ');
+	  
+    WHEN OTHERS THEN
+	  RAISE_APPLICATION_ERROR(-20001,'CLIENTE: ' || p_cliente_id ||  ' problemas cadastrais !!! ');
+	  
+   END;
+   -- 
+   -- Consulta ao PRODUTO
+   r_produtos := NULL;
+   BEGIN
+    --
+	SELECT produto_id, nome, preco
+	   INTO r_produtos
+	  FROM PRODUTOS
+       WHERE produto_id = 	 p_produto_id;
+	--   
+   EXCEPTION 
+    WHEN NO_DATA_FOUND THEN
+	  RAISE_APPLICATION_ERROR(-20001,'PRODUTO: ' || p_produto_id ||  ' INEXISTENTE !!! ');
+	  
+    WHEN OTHERS THEN
+	  RAISE_APPLICATION_ERROR(-20001,'PRODUTO: ' || p_produto_id ||  ' problemas cadastrais !!! ');
+	  
+   END;
+   -- Inserindo na tabela PEDIDOS
+   BEGIN
+    --   Conforme premissa:   SEQUENCE:  seq_pedido.NEXTVAL  e a coluna: TOTAL_PEDIDO é CALCULADO.
+	SELECT seq_pedido.NEXTVAL
+	   INTO v_pedido_id
+	  FROM DUAL;
+	--  a coluna total_pedido estou iniciando com zero, porém a trigger do requisito 2 irá atualizar 
+	--   na inserção do registro na tabela ITENS_PEDIDO.
+	 INSERT INTO PEDIDOS(pedido_id,cliente_id,data_pedido, total_pedido)
+	  VALUES(v_pedido_id,p_cliente_id, SYSDATE,0);
+	--
+	EXCEPTION 
+	  WHEN DUP_VAL_ON_INDEX THEN
+	  
+	   RAISE_APPLICATION_ERROR(-20002,'Problemas ao inserir o pedido do produto: ' || p_produto_id || ' para o cliente: ' || p_cliente_id);
+	   --
+	   ROLLBACK;
+	   
+	  WHEN OTHERS THEN
+	  
+	   RAISE_APPLICATION_ERROR(-20002,'Problemas ao inserir o pedido do produto: ' || p_produto_id || ' para o cliente: ' || p_cliente_id);
+	   --
+	   ROLLBACK;
+
+	END;
+    --
+    -- Inserindo na tabela ITENS_PEDIDO
+	BEGIN
+	  -- Conforme premissa:   SEQUENCE:  seq_item.NEXTVAL 
+      INSERT INTO ITENS_PEDIDO(ITEM_ID,PEDIDO_ID, PRODUTO_ID,QUANTIDADE)
+        VALUES(SEQ_ITEM.NEXTVAL,	v_pedido_id, p_produto_id,p_quantidade);
+	---   OBSERVAÇÃO   -------	
+	-- Estou entendendo que a trigger irá atualizar, mas poderia acrescentar a função criada no requisito 1 
+	--  e atualizar a tabela: PEDIDOS-total_pedido neste passo.
+	
+	COMMIT;
+    --		
+	EXCEPTION
+      WHEN DUP_VAL_ON_INDEX THEN
+        --
+    	RAISE_APPLICATION_ERROR(-20003,'Problemas ao inserir o item do pedido do produto: ' || p_produto_id || ' para o cliente: ' || p_cliente_id);
+	   --
+	   ROLLBACK;
+	    
+	  WHEN OTHERS THEN
+	   RAISE_APPLICATION_ERROR(-20003,'Problemas ao inserir o item do pedido do produto: ' || p_produto_id || ' para o cliente: ' || p_cliente_id);
+	   --
+	   ROLLBACK;
+	
+	END; 		
+   
+  END;

@@ -1,0 +1,32 @@
+- UTILIZANDO A função  criada no requisito 1
+
+CREATE OR REPLACE TRIGGER TRG_ITENS_PEDIDO
+
+   AFTER INSERT OR UPDATE  ON ITENS_PEDIDO
+    FOR EACH ROW
+	
+   DECLARE
+     v_total_pedido      pedidos.total_pedido%type;
+	 v_pedido_id         pedidos.pedido_id%type;
+    --
+    BEGIN
+	 --
+	 v_pedido_id := :new.pedido_id;
+	 v_total_pedido := F_CALCULO_PEDIDO (v_pedido_id) ;
+     --
+	EXCEPTION
+  	 WHEN OTHERS THEN
+	  --
+	 v_total_pedido := 0;
+	END;
+    --   Atualizar o Total da tabela PEDIDOS	
+	  --
+      UPDATE PEDIDOS  
+         SET TOTAL_PEDIDO = 	v_total_pedido
+        WHERE PEDIDO_ID = :new.pedido_id;
+	  --
+      IF SQL%ROWCOUNT = 0 THEN
+	    --
+		RAISE_APPLICATION_ERROR(-20001,'Pedido: ' ||  :new.pedido_id || ' INEXISTENTE !!!!');
+	  END IF;
+	END;

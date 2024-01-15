@@ -1,0 +1,53 @@
+--   Estou partindo do pressuposto que o produto e a quantidade do item do produto estejam informados (consistencia feita pelo sistema frontend).
+--    caso contrario teria que acrescentar nvl e outer join no produto.              
+				   
+	CREATE OR REPLACE FUNCTION F_CALCULO_PEDIDO (p_pedido_id   pedidos.pedido_id%type) 
+	  return  number as   
+	    --  Variaveis
+		 v_total_pedido      pedidos.total_pedido%type;
+	    
+		BEGIN
+		 --
+		 v_total_pedido := 0;
+		 --
+		  BEGIN
+		   --
+	       SELECT SUM(i.QUANTIDADE * r.preco)
+		     into  v_total_pedido
+	        FROM ITENS_PEDIDO i 
+		      inner join PRODUTOS r on    
+		          i.produto_id = r.produto_id			 
+ 	          wHERE i.pedido_id =	p_pedido_id;   		   
+		   --
+          EXCEPTION
+            WHEN NO_DATA_FOUND  THEN
+			 --
+			 v_total_pedido := 0;
+			 
+            WHEN OTHERS THEN
+			 --
+			 v_total_pedido := 0;
+		  END;
+        --
+		F_CALCULO_PEDIDO := v_total_pedido;
+		--
+       END;		  
+ 	  
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+2	Criar uma trigger PL/SQL que calcula automaticamente o total do pedido sempre que um novo item do pedido é inserido. A trigger será acionada após a inserção de um novo item na tabela itens_pedido.
+3	Criar uma procedure PL/SQL para compra com tratamento de exceções, (informando o id do cliente, id do produto e quantidade), em caso de erro fazer rollback da transação.
